@@ -1,0 +1,27 @@
+{
+  "name": "backend-anime-dataset",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/xVjVx/Backend-Anime-Dataset#readme",
+  "bugs": {
+    "url": "https://github.com/xVjVx/Backend-Anime-Dataset/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xVjVx/Backend-Anime-Dataset.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "./src/app.js",
+  "scripts": {
+    "start": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "mongodb": "^7.8.0",
+    "nodemon": "^3.1.14"
+  }
+}
