@@ -1,13 +1,18 @@
 import express from 'express'
 
 import anime from './routes/anime.js'
+import user from './routes/user.js'
 
 const app = express()
-const port = 3000
+const port = process.env.PORT
 
 app.use(express.json())
 
-app.use("/", anime)
+// Anime Route
+app.use("/anime", anime)
+
+//User Route
+app.use("/user", user)
 
 app.listen(port, () => {
     console.log(`Listening on port ${port}`)
