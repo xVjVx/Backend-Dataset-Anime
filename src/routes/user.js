@@ -40,6 +40,21 @@ router.get("/", async (req, res) => {
     }
 })
 
+// Endpoint 4
+router.post("/", async (req, res) => {
+    try {
+        const body = req.body;
+        const users = Array.isArray(body) ? body : [body];
+        
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+
+
+})
+
 // Enpoint 8
 router.delete("/:user_id", async (req, res) => {
     try {
