@@ -84,6 +84,6 @@ router.delete("/:user_id", async (req, res) => {
             message: error.message
         });
     }
-})
+});
 
 export default router;
