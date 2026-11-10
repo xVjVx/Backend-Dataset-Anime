@@ -201,6 +201,67 @@ router.delete("/:anime_id", async (req, res) => {
             message: error.message
         });
     }
-})
+});
+
+// Enpoint 9
+router.put("/:anime_id", async (req, res) => {
+    try {
+        const updated_id = req.params.anime_id;
+        const updates = req.body;
+
+        if(!/^[1-9]\d*$/.test(updated_id)) {
+            return res.status(400).json({
+                message: "Invalid ID, it must be a positive integer."
+            });
+        }
+
+        if (!updates || typeof updates != "object" || Array.isArray(updates) || Object.keys(updates).length == 0) {
+            return res.status(400).json({
+                maessage: "No fileds provided for update."
+            });
+        }
+
+        const allowedFields = [
+            "titulo",
+            "genero",
+            "ano_lancamento",
+            "estudio",
+            "episodios",
+            "classificacao_imdb",
+            "idioma_original",
+            "popularidade"
+        ];
+
+        const invalidFields = Object.keys(updates).filter(
+            field => !allowedFields.includes(field)
+        );
+
+        if (invalidFields.length > 0) {
+            return res.status(400).json({
+                message: "Invalid fields", invalidFields
+            });
+        }
+
+        const result = await db.collection("anime").updateOne(
+            {id: Number(updated_id)},
+            {$set: updates}
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                message: "Anime not found."
+            });
+        }
+
+        return res.status(200).json({
+            message: "Anime updated successfully."
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+});
 
 export default router;

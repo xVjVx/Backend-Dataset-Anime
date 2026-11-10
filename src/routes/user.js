@@ -40,6 +40,21 @@ router.get("/", async (req, res) => {
     }
 })
 
+// Endpoint 4
+router.post("/", async (req, res) => {
+    try {
+        const body = req.body;
+        const users = Array.isArray(body) ? body : [body];
+        
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+
+
+})
+
 //Endpoint10
 router.put("/:user_id", async (req, res) => {
     const user_id = req.params.user_id;
@@ -125,6 +140,6 @@ router.delete("/:user_id", async (req, res) => {
             message: error.message
         });
     }
-})
+});
 
 export default router;
