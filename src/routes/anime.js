@@ -93,84 +93,6 @@ router.get("/", async (req, res) => {
     }
 })
 
-// Endpoint 11: mostra os animes mais bem avaliados
-router.get("/top/:limit", async (req, res) => {
-    const limit = Number(req.params.limit);
-    const pagination = getPagination(req.query);
-
-    if (!Number.isSafeInteger(limit) || limit < 1) {
-        return res.status(400).json({ message: "Invalid limit." });
-    }
-
-    if (pagination === null) {
-        return res.status(400).json({ message: "Invalid pagination." });
-    }
-
-    try {
-        const topAnime = await db.collection("anime").aggregate([
-            ...ratingStages,
-            { $sort: { average_score: -1, id: 1 } },
-            { $limit: limit }
-        ]).toArray();
-
-        const results = topAnime.slice(
-            pagination.skip,
-            pagination.skip + pagination.pageSize
-        );
-
-        return res.status(200).json({
-            page: pagination.page,
-            pageSize: pagination.pageSize,
-            total: topAnime.length,
-            results
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Internal server error." });
-    }
-});
-
-
-
-// Endpoint 12: ordena os animes pelo número de avaliações
-router.get("/ratings/:order", async (req, res) => {
-    const order = req.params.order.toLowerCase();
-    const pagination = getPagination(req.query);
-
-    if (order !== "asc" && order !== "desc") {
-        return res.status(400).json({ message: "Use asc or desc." });
-    }
-
-    if (pagination === null) {
-        return res.status(400).json({ message: "Invalid pagination." });
-    }
-
-    try {
-        const direction = order === "asc" ? 1 : -1;
-
-        const anime = await db.collection("anime").aggregate([
-            ...ratingStages,
-            { $sort: { total_ratings: direction, id: 1 } }
-        ]).toArray();
-
-        const results = anime.slice(
-            pagination.skip,
-            pagination.skip + pagination.pageSize
-        );
-
-        return res.status(200).json({
-            page: pagination.page,
-            pageSize: pagination.pageSize,
-            total: anime.length,
-            results
-        });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Internal server error." });
-    }
-});
-
-
 
 // Endpoint 7
 router.delete("/:anime_id", async (req, res) => {
@@ -263,5 +185,83 @@ router.put("/:anime_id", async (req, res) => {
         });
     }
 });
+
+// Endpoint 11: mostra os animes mais bem avaliados
+router.get("/top/:limit", async (req, res) => {
+    const limit = Number(req.params.limit);
+    const pagination = getPagination(req.query);
+
+    if (!Number.isSafeInteger(limit) || limit < 1) {
+        return res.status(400).json({ message: "Invalid limit." });
+    }
+
+    if (pagination === null) {
+        return res.status(400).json({ message: "Invalid pagination." });
+    }
+
+    try {
+        const topAnime = await db.collection("anime").aggregate([
+            ...ratingStages,
+            { $sort: { average_score: -1, id: 1 } },
+            { $limit: limit }
+        ]).toArray();
+
+        const results = topAnime.slice(
+            pagination.skip,
+            pagination.skip + pagination.pageSize
+        );
+
+        return res.status(200).json({
+            page: pagination.page,
+            pageSize: pagination.pageSize,
+            total: topAnime.length,
+            results
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
+
+
+// Endpoint 12: ordena os animes pelo número de avaliações
+router.get("/ratings/:order", async (req, res) => {
+    const order = req.params.order.toLowerCase();
+    const pagination = getPagination(req.query);
+
+    if (order !== "asc" && order !== "desc") {
+        return res.status(400).json({ message: "Use asc or desc." });
+    }
+
+    if (pagination === null) {
+        return res.status(400).json({ message: "Invalid pagination." });
+    }
+
+    try {
+        const direction = order === "asc" ? 1 : -1;
+
+        const anime = await db.collection("anime").aggregate([
+            ...ratingStages,
+            { $sort: { total_ratings: direction, id: 1 } }
+        ]).toArray();
+
+        const results = anime.slice(
+            pagination.skip,
+            pagination.skip + pagination.pageSize
+        );
+
+        return res.status(200).json({
+            page: pagination.page,
+            pageSize: pagination.pageSize,
+            total: anime.length,
+            results
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error." });
+    }
+});
+
 
 export default router;
