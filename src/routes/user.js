@@ -125,6 +125,126 @@ router.post("/", async (req, res) => {
 
 })
 
+
+// Endpoint 6
+router.get("/:user_id", async (req, res) => {
+    try {
+        const user_id = req.params.user_id;
+
+        // Only accept positive integers
+        if (!/^[1-9]\d*$/.test(user_id)) {
+            return res.status(400).json({
+                message: "Invalid ID, it must be a positive integer."
+            });
+        }
+
+        const id = Number(user_id);
+
+        const result = await db.collection("user").aggregate([
+            // Find the user
+            { $match: { id: id } },
+
+            // Get the animes this user reviewed (deleted animes are not found)
+            {
+                $lookup: {
+                    from: "anime",
+                    localField: "avaliacoes.item_id",
+                    foreignField: "id",
+                    as: "__animes"
+                }
+            },
+
+            // Keep reviews of existing animes, most recent first
+            {
+                $set: {
+                    __sorted: {
+                        $sortArray: {
+                            input: {
+                                $filter: {
+                                    input: "$avaliacoes",
+                                    as: "a",
+                                    cond: { $in: ["$$a.item_id", "$__animes.id"] }
+                                }
+                            },
+                            sortBy: { data: -1 }
+                        }
+                    }
+                }
+            },
+
+            // Remove duplicates: keep only the most recent review of each anime
+            {
+                $set: {
+                    __unique: {
+                        $reduce: {
+                            input: "$__sorted",
+                            initialValue: [],
+                            in: {
+                                $cond: [
+                                    { $in: ["$$this.item_id", "$$value.item_id"] },
+                                    "$$value",
+                                    { $concatArrays: ["$$value", ["$$this"]] }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+
+            // Top 3: best rating first, ties by most recent date
+            {
+                $set: {
+                    top_3: {
+                        $map: {
+                            input: {
+                                $slice: [
+                                    {
+                                        $sortArray: {
+                                            input: "$__unique",
+                                            sortBy: { nota: -1, data: -1 }
+                                        }
+                                    },
+                                    3
+                                ]
+                            },
+                            as: "a",
+                            in: {
+                                item_id: "$$a.item_id",
+                                // Get the anime title
+                                titulo: {
+                                    $arrayElemAt: [
+                                        "$__animes.titulo",
+                                        { $indexOfArray: ["$__animes.id", "$$a.item_id"] }
+                                    ]
+                                },
+                                nota: "$$a.nota",
+                                comentario: "$$a.comentario",
+                                data: "$$a.data"
+                            }
+                        }
+                    }
+                }
+            },
+
+            // Remove temporary fields and _id
+            { $project: { _id: 0, __animes: 0, __sorted: 0, __unique: 0 } }
+        ]).toArray();
+
+        // No result = user doesn't exist
+        if (result.length === 0) {
+            return res.status(404).json({
+                message: "User not found."
+            });
+        }
+
+        return res.status(200).json(result[0]);
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+})
+
 // Enpoint 8
 router.delete("/:user_id", async (req, res) => {
     try {
