@@ -298,4 +298,104 @@ router.get("/ratings/:order", async (req, res) => {
 });
 
 
+// Endpoint 13
+router.get("/star", async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const perPage = parseInt(req.query.perPage) || 20;
+
+        if (page < 1 || perPage < 1) {
+            return res.status(400).json({
+                message: "page and perPage must be positive integers."
+            });
+        }
+
+        const items = await db.collection("anime").countDocuments();
+        const pages = Math.ceil(items / perPage);
+
+        const results = await db.collection("anime").find({})
+            .sort({ classificacao_imdb: -1 })
+            .skip((page - 1) * perPage)
+            .limit(perPage)
+            .toArray();
+
+        const data = results.map(anime => ({
+            ...anime,
+            stars: Math.round(anime.classificacao_imdb / 2)
+        }));
+
+        return res.status(200).json({
+            first: 1,
+            prev: page > 1 ? page - 1 : null,
+            next: page < pages ? page + 1 : null,
+            last: pages,
+            pages: pages,
+            items: items,
+            data: data
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+});
+
+// Endpoint 14
+router.get("/:year", async (req, res) => {
+    try {
+        const year = Number(req.params.year);
+        const page = Number(req.query.page ?? 1);
+        const perPage = Number(req.query.perPage ?? 20);
+
+        if (!Number.isInteger(year) || year < 1900) {
+            return res.status(400).json({
+                message: "Invalid year."
+            });
+        }
+
+        if (!Number.isInteger(page) || !Number.isInteger(perPage)
+            || page < 1 || perPage < 1) {
+            return res.status(400).json({
+                message: "page and perPage must be positive integers."
+            });
+        }
+
+        const filter = { ano_lancamento: year };
+
+        const items = await db.collection("anime")
+            .countDocuments(filter);
+
+        const pages = Math.ceil(items / perPage);
+
+        const results = await db.collection("anime").find(filter)
+            .sort({ id: 1 })
+            .skip((page - 1) * perPage)
+            .limit(perPage)
+            .toArray();
+
+        if (items === 0) {
+            return res.status(404).json({
+                message: "No anime found for this year."
+            });
+        }
+
+        return res.status(200).json({
+            first: 1,
+            prev: page > 1 ? page - 1 : null,
+            next: page < pages ? page + 1 : null,
+            last: pages,
+            pages: pages,
+            items: items,
+            data: results
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+});
+
+
 export default router;

@@ -156,4 +156,82 @@ router.delete("/:user_id", async (req, res) => {
     }
 });
 
+// Endpoint 15
+router.post("/:id/review/:dataset_id", async (req, res) => {
+    try {
+        const user_id = req.params.id;
+        const anime_id = req.params.dataset_id;
+        const { nota, comentario } = req.body;
+
+        // Validar IDs
+        if (!/^[1-9]\d*$/.test(user_id) ||
+            !/^[1-9]\d*$/.test(anime_id)) {
+            return res.status(400).json({
+                message: "Invalid ID, it must be a positive integer."
+            });
+        }
+
+        // Validar nota
+        if (!Number.isInteger(nota) || nota < 1 || nota > 5) {
+            return res.status(400).json({
+                message: "Nota must be an integer between 1 and 5."
+            });
+        }
+
+        // Validar comentário
+        if (typeof comentario !== "string" ||
+            comentario.trim() === "") {
+            return res.status(400).json({
+                message: "Comentario must be a non-empty string."
+            });
+        }
+
+        // Verificar se o utilizador existe
+        const user = await db.collection("user").findOne({
+            id: Number(user_id)
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found."
+            });
+        }
+
+        // Verificar se o anime existe
+        const anime = await db.collection("anime").findOne({
+            id: Number(anime_id)
+        });
+
+        if (!anime) {
+            return res.status(404).json({
+                message: "Anime not found."
+            });
+        }
+
+        // Criar a nova avaliação
+        const review = {
+            item_id: Number(anime_id),
+            nota: nota,
+            comentario: comentario.trim(),
+            data: new Date().toISOString().split("T")[0]
+        };
+
+        // Adicionar avaliação ao utilizador
+        await db.collection("user").updateOne(
+            { id: Number(user_id) },
+            { $push: { avaliacoes: review } }
+        );
+
+        return res.status(201).json({
+            message: "Review added successfully.",
+            review: review
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+});
+
 export default router;
