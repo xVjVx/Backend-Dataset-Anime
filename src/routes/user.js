@@ -226,8 +226,8 @@ router.get("/:user_id", async (req, res) => {
                 }
             },
 
-            // Remove temporary fields and _id
-            { $project: { _id: 0, __animes: 0, __sorted: 0, __unique: 0 } }
+            // Remove temporary fields, _id and the full reviews list
+            { $project: { _id: 0, avaliacoes: 0, __animes: 0, __sorted: 0, __unique: 0 } }
         ]).toArray();
 
         // No result = user doesn't exist
