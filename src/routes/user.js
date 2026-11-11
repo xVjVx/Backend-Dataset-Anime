@@ -157,8 +157,8 @@ router.delete("/:user_id", async (req, res) => {
 });
 
 //Endpoint10
-router.put("/:user_id", async (req, res) => {
-    const user_id = req.params.user_id;
+router.put("/:id", async (req, res) => {
+    const user_id = req.params.id;
 
     if (!/^[1-9]\d*$/.test(user_id) || !Number.isSafeInteger(Number(user_id))) {
         return res.status(400).json({
