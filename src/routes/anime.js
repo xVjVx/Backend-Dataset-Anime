@@ -139,7 +139,7 @@ router.put("/:anime_id", async (req, res) => {
 
         if (!updates || typeof updates != "object" || Array.isArray(updates) || Object.keys(updates).length == 0) {
             return res.status(400).json({
-                maessage: "No fileds provided for update."
+                message: "No fileds provided for update."
             });
         }
 
