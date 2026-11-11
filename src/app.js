@@ -12,7 +12,7 @@ app.use(express.json())
 app.use("/anime", anime)
 
 //User Route
-app.use("/user", user)
+app.use("/users", user)
 
 app.listen(port, () => {
     console.log(`Listening on port ${port}`)
