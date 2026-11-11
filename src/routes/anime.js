@@ -109,8 +109,11 @@ router.get("/score/:anime_id", async (req, res) => {
         //Find the Anime (and the average score)
         const result = await db.collection("anime").aggregate([
             { $match: { id: id } },
-            ...ratingStages
+            ...ratingStages,
+            { $set: { average_score: { $round: ["$average_score", 2] } } },
+            { $project: { _id: 0 } }
         ]).toArray();
+        
         //If it doesn't exist, return an error
         if (result.length === 0) {
             return res.status(404).json({
