@@ -93,6 +93,33 @@ router.get("/", async (req, res) => {
     }
 })
 
+// Endpoint 3
+router.post("/", async (req, res) => {
+    try {
+        const novos = req.body;
+
+        if (!novos || Object.keys(novos).length == 0) {
+            return res.status(400).json({
+                message: "Request body is empty."
+            });
+        }
+
+        let result;
+
+        if (Array.isArray(novos)) {
+            result = await db.collection("anime").insertMany(novos);
+        } else {
+            result = await db.collection("anime").insertOne(novos);
+        }
+
+        return res.status(201).json(result);
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+})
+
 //Endpoint 5
 router.get("/score/:anime_id", async (req, res) => {
     try {
@@ -113,7 +140,7 @@ router.get("/score/:anime_id", async (req, res) => {
             { $set: { average_score: { $round: ["$average_score", 2] } } },
             { $project: { _id: 0 } }
         ]).toArray();
-        
+
         //If it doesn't exist, return an error
         if (result.length === 0) {
             return res.status(404).json({
