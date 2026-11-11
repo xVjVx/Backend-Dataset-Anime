@@ -46,7 +46,31 @@ router.post("/", async (req, res) => {
         const body = req.body;
         const users = Array.isArray(body) ? body : [body];
         
+        //Check if the body is not empty
+        if (users.length === 0){
+            return res.status(400).json({
+                message: "Body must contain at least one user."
+            })
+        }
+        //Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emails = [];
+
+        
+        //next available id
+        const last = await db.collection("user").find({}).sort({id:-1})
+            .limit(1).toArray();
+        let nextId = last.length > 0 ? last[0].id + 1 : 1;
+
+
+        
     } catch (error) {
+        //On DB Compass, email is an unique index
+        if (error.code === 11000) {
+            return res.status(409).json({
+                message: "Email already in use."
+            });
+        }
         return res.status(500).json({
             message: error.message
         });
