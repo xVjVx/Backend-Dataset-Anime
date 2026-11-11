@@ -93,6 +93,40 @@ router.get("/", async (req, res) => {
     }
 })
 
+//Endpoint 5
+router.get("/anime/:id", async (req, res) => {
+    try {
+        //Verify if the ID is a simple integer
+        const anime_id = req.params.anime_id;
+        if(!/^[1-9]\d*$/.test(anime_id)){
+            return res.status(400).json({
+                message: "ID must be a positive integer."
+            });
+        }
+
+        const id = Number(anime_id);
+
+        //Find the Anime (and the average score)
+        const result = await db.collection("anime").aggregate([
+            { $match: { id: id } },
+            ...ratingStages
+        ]).toArray();
+        //If it doesn't exist, return an error
+        if (result.length === 0) {
+            return res.status(404).json({
+                message: "Anime not found."
+            });
+        }
+        //return the result
+        return res.status(200).json(result[0]);
+        
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+})
+
 
 // Endpoint 7
 router.delete("/:anime_id", async (req, res) => {
