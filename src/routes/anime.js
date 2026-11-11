@@ -343,6 +343,112 @@ router.get("/star", async (req, res) => {
         });
     }
 });
+ 
+ // Endpoint 16 Filtrar por género e episódios
+router.get("/filter", async (req, res) => {
+    try {
+        const page = Number(req.query.page ?? 1);
+        const perPage = Number(req.query.perPage ?? 20);
+
+        const { genero, minEpisodios, maxEpisodios } = req.query;
+
+        if (!Number.isInteger(page) || !Number.isInteger(perPage)
+            || page < 1 || perPage < 1) {
+            return res.status(400).json({
+                message: "page and perPage must be positive integers."
+            });
+        }
+
+        const filter = {};
+
+        // Filtrar por género
+        if (genero !== undefined) {
+            if (typeof genero !== "string" || genero.trim() === "") {
+                return res.status(400).json({
+                    message: "Invalid genre."
+                });
+            }
+
+            // Escapar caracteres especiais e ignorar maiúsculas
+            const genre = genero.trim()
+                .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+            filter.genero = {
+                $regex: genre,
+                $options: "i"
+            };
+        }
+
+        // Filtrar pelo número mínimo de episódios
+        if (minEpisodios !== undefined) {
+            const min = Number(minEpisodios);
+
+            if (!Number.isInteger(min) || min < 0) {
+                return res.status(400).json({
+                    message: "Invalid minimum episodes."
+                });
+            }
+
+            filter.episodios = {
+                ...filter.episodios,
+                $gte: min
+            };
+        }
+
+        // Filtrar pelo número máximo de episódios
+        if (maxEpisodios !== undefined) {
+            const max = Number(maxEpisodios);
+
+            if (!Number.isInteger(max) || max < 0) {
+                return res.status(400).json({
+                    message: "Invalid maximum episodes."
+                });
+            }
+
+            filter.episodios = {
+                ...filter.episodios,
+                $lte: max
+            };
+        }
+
+        // Verificar se o mínimo é maior que o máximo
+        if (filter.episodios?.$gte !== undefined &&
+            filter.episodios?.$lte !== undefined &&
+            filter.episodios.$gte > filter.episodios.$lte) {
+            return res.status(400).json({
+                message: "Minimum episodes cannot exceed maximum episodes."
+            });
+        }
+
+        // Contar os animes encontrados
+        const items = await db.collection("anime")
+            .countDocuments(filter);
+
+        const pages = Math.ceil(items / perPage);
+
+        // Pesquisar os animes
+        const results = await db.collection("anime").find(filter)
+            .sort({ id: 1 })
+            .skip((page - 1) * perPage)
+            .limit(perPage)
+            .toArray();
+
+        return res.status(200).json({
+            first: 1,
+            prev: page > 1 ? page - 1 : null,
+            next: page < pages ? page + 1 : null,
+            last: pages,
+            pages: pages,
+            items: items,
+            data: results
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+});
 
 // Endpoint 14
 router.get("/:year", async (req, res) => {
