@@ -94,7 +94,7 @@ router.get("/", async (req, res) => {
 })
 
 //Endpoint 5
-router.get("/anime/:id", async (req, res) => {
+router.get("/:id", async (req, res) => {
     try {
         //Verify if the ID is a simple integer
         const anime_id = req.params.anime_id;
