@@ -477,6 +477,111 @@ router.get("/filter", async (req, res) => {
     }
 });
 
+// Endpoint 19 - favorite anime by district
+router.get("/district", async (req, res) => {
+    try {
+        const results = await db.collection("user").aggregate([
+            {$match: { distrito: {$type: "string",$ne: "" } } },
+            {
+                $unwind: {
+                    path: "$avaliacoes",
+                    includeArrayIndex: "reviewIndex"
+                }
+            },
+            {
+                $match: {
+                    "avaliacoes.item_id": { $type: "number" },
+                    "avaliacoes.nota": {
+                        $type: "number",
+                        $gte: 1,
+                        $lte: 5
+                    }
+                }
+            },
+            //e um utilizador avaliou o mesmo anime várias vezes, apenas é considerada a mais recente!
+            {
+                $sort: {
+                    "avaliacoes.data": -1,
+                    reviewIndex: -1
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        distrito: "$distrito",
+                        userId: "$id",
+                        animeId: "$avaliacoes.item_id"
+                    },
+                    nota: { $first: "$avaliacoes.nota" }
+                }
+            },
+            // Calcula a média por anime e distrito.
+            {
+                $group: {
+                    _id: {
+                        distrito: "$_id.distrito",
+                        animeId: "$_id.animeId"
+                    },
+                    averageRating: { $avg: "$nota" },
+                    reviewerCount: { $sum: 1 }
+                }
+            },
+            {
+                $lookup: {
+                    from: "anime",
+                    localField: "_id.animeId",
+                    foreignField: "id",
+                    as: "anime"
+                }
+            },
+            { $unwind: "$anime" },
+            // Maior média primeiro; desempata pelo número de avaliadores.
+            {
+                $sort: {
+                    "_id.distrito": 1,
+                    averageRating: -1,
+                    reviewerCount: -1,
+                    "_id.animeId": 1
+                }
+            },
+            // Escolhe o anime preferido de cada distrito.
+            {
+                $group: {
+                    _id: "$_id.distrito",
+                    animeId: { $first: "$_id.animeId" },
+                    averageRating: { $first: "$averageRating" },
+                    reviewerCount: { $first: "$reviewerCount" },
+                    anime: { $first: "$anime" }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    distrito: "$_id",
+                    animeId: 1,
+                    averageRating: { $round: ["$averageRating", 2] },
+                    reviewerCount: 1,
+                    anime: {
+                        id: "$anime.id",
+                        titulo: "$anime.titulo"
+                    }
+                }
+            },
+            { $sort: { distrito: 1 } }
+        ]).toArray();
+
+        return res.status(200).json(results);
+    } catch (error) {
+        console.error("Failed to get favorite anime by district:", error);
+        return res.status(500).json({
+            message: "Internal server error."
+        });
+    }
+});
+
+
+
+
 // Endpoint 14
 router.get("/:year", async (req, res) => {
     try {
