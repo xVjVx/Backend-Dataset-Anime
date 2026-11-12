@@ -410,4 +410,70 @@ router.post("/:id/review/:dataset_id", async (req, res) => {
     }
 });
 
+// Lista de animes vistos
+router.post("/:user_id/watched_anime", async (req, res) => {
+    try {
+        const user_id = req.params.user_id;
+        const animes = req.body.animes;
+
+        // Validar o ID do utilizador
+        if (!/^[1-9]\d*$/.test(user_id)) {
+            return res.status(400).json({
+                message: "Invalid user ID, it must be a positive integer."
+            });
+        }
+
+        // Validar a lista de animes
+        if (!Array.isArray(animes) || animes.length === 0) {
+            return res.status(400).json({
+                message: "Animes must be a non-empty array."
+            });
+        }
+
+        // Validar os IDs dos animes
+        if (!animes.every(id => Number.isSafeInteger(id) && id > 0)) {
+            return res.status(400).json({
+                message: "All anime IDs must be positive integers."
+            });
+        }
+
+        // Verificar se os animes existem
+        const existingAnimes = await db.collection("anime")
+            .find({ id: { $in: animes } })
+            .project({ id: 1, _id: 0 })
+            .toArray();
+
+        if (existingAnimes.length !== new Set(animes).size) {
+            return res.status(400).json({
+                message: "One or more anime IDs do not exist."
+            });
+        }
+
+        // Adicionar os animes à lista do utilizador
+        const result = await db.collection("user").updateOne(
+            { id: Number(user_id) },
+            {
+                $addToSet: {
+                    animes_vistos: { $each: animes }
+                }
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                message: "User not found."
+            });
+        }
+
+        return res.status(200).json({
+            message: "Anime list updated successfully."
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+});
+
 export default router;
