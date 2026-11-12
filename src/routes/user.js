@@ -476,4 +476,203 @@ router.post("/:user_id/watched_anime", async (req, res) => {
     }
 });
 
+
+
+// Best IMDB first, tiebreak by lowest id
+const BEST_SORT = { classificacao_imdb: -1, id: 1 };
+
+//Very basic recommendation System endpoint
+router.get("/:user_id/recommendations", async (req, res) => {
+    try {
+        const user_id = req.params.user_id;
+
+        //Verify if its a valid ID
+        if (!/^[1-9]\d*$/.test(user_id) || !Number.isSafeInteger(Number(user_id))) {
+            return res.status(400).json({
+                message: "Invalid ID, it must be a positive integer."
+            });
+        }
+
+        //Find User
+        const user = await db.collection("user").findOne({ id: Number(user_id) });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found."
+            });
+        }
+
+        const avaliacoes = Array.isArray(user.avaliacoes) ? user.avaliacoes : [];
+        const animes_vistos = Array.isArray(user.animes_vistos) ? user.animes_vistos : [];
+
+        // Watched = animes_vistos + reviewed animes
+        const watched = new Set([
+            ...animes_vistos,
+            ...avaliacoes.map(r => r.item_id)
+        ]);
+        const watchedIds = [...watched];
+
+        let genre = null;
+
+        //user has reviews -> check highest rated genre
+        if (avaliacoes.length > 0) {
+            genre = await getTopGenre(avaliacoes);
+        }
+
+        //no genre yet but has watch history -> check most watched genre
+        if (genre === null && watched.size > 0) {
+            genre = await getMostWatchedGenre(watchedIds);
+        }
+
+        //got a genre -> best unwatched anime from that genre
+        if (genre !== null) {
+            const fromGenre = await findBest({ genero: genre, id: { $nin: watchedIds } });
+
+            if (fromGenre) {
+                return res.status(200).json(fromGenre);
+            }
+        }
+
+        //no genre or nothing left in it -> best unwatched anime overall
+        const fallback = await findBest({ id: { $nin: watchedIds } });
+
+        if (fallback) {
+            return res.status(200).json(fallback);
+        }
+
+        return res.status(404).json({
+            message: "No recommendation available."
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+})
+
+// Best anime that matches the filter
+async function findBest(filter) {
+    const result = await db.collection("anime")
+        .find(filter)
+        .sort(BEST_SORT)
+        .limit(1)
+        .project({ _id: 0 })
+        .toArray();
+
+    return result[0] ?? null;
+}
+
+// genero can be a string or an array, always return an array
+function toGenreList(genero) {
+    if (Array.isArray(genero)) {
+        return genero.filter(g => typeof g === "string" && g.trim() !== "");
+    }
+    if (typeof genero === "string" && genero.trim() !== "") {
+        return [genero];
+    }
+    return [];
+}
+
+async function getTopGenre(avaliacoes) {
+    // Remove duplicates: keep only the most recent review of each anime
+    const latest = new Map();
+    for (const review of avaliacoes) {
+        if (!review || typeof review.nota !== "number") {
+            continue;
+        }
+        const current = latest.get(review.item_id);
+        if (!current || String(review.data ?? "") >= String(current.data ?? "")) {
+            latest.set(review.item_id, review);
+        }
+    }
+
+    if (latest.size === 0) {
+        return null;
+    }
+
+    // Single query for all reviewed animes (unique ids)
+    const animes = await db.collection("anime")
+        .find({ id: { $in: [...latest.keys()] } })
+        .project({ _id: 0, id: 1, genero: 1 })
+        .toArray();
+
+    const animeById = new Map(animes.map(a => [a.id, a]));
+
+    // genre -> { sum, count }
+    const genres = new Map();
+
+    for (const review of latest.values()) {
+        const anime = animeById.get(review.item_id);
+
+        // Deleted anime: skip
+        if (!anime) {
+            continue;
+        }
+
+        // Anime without genre is skipped (empty list)
+        for (const g of toGenreList(anime.genero)) {
+            const entry = genres.get(g) ?? { sum: 0, count: 0 };
+            entry.sum += review.nota;
+            entry.count += 1;
+            genres.set(g, entry);
+        }
+    }
+
+    // Highest average (only avg > 2.5), tiebreak by highest count, then alphabetical
+    let top = null;
+
+    for (const [name, { sum, count }] of genres) {
+        const avg = sum / count;
+
+        if (avg <= 2.5) {
+            continue;
+        }
+
+        if (
+            top === null ||
+            avg > top.avg ||
+            (avg === top.avg && count > top.count) ||
+            (avg === top.avg && count === top.count && name.localeCompare(top.name) < 0)
+        ) {
+            top = { name, avg, count };
+        }
+    }
+
+    // No valid genres found -> null
+    return top ? top.name : null;
+}
+
+async function getMostWatchedGenre(watchedIds) {
+    // Single query for all watched animes
+    const animes = await db.collection("anime")
+        .find({ id: { $in: watchedIds } })
+        .project({ _id: 0, id: 1, genero: 1 })
+        .toArray();
+
+    // genre -> count (deleted animes are not found)
+    const counts = new Map();
+
+    for (const anime of animes) {
+        for (const g of toGenreList(anime.genero)) {
+            counts.set(g, (counts.get(g) ?? 0) + 1);
+        }
+    }
+
+    // Highest count, tiebreak alphabetical
+    let top = null;
+
+    for (const [name, count] of counts) {
+        if (
+            top === null ||
+            count > top.count ||
+            (count === top.count && name.localeCompare(top.name) < 0)
+        ) {
+            top = { name, count };
+        }
+    }
+
+    // No valid genres found -> null
+    return top ? top.name : null;
+}
 export default router;
