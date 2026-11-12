@@ -209,5 +209,3 @@ Its main objective was to explore backend development through the implementation
 Throughout the project, particular attention was given to CRUD operations, data validation, database aggregation pipelines, pagination, user-generated content and basic recommendation algorithms.
 
 ---
-
-**Repository:** [Backend-Dataset-Anime](https://github.com/xVjVx/Backend-Dataset-Anime)
